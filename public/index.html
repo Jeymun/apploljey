@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { background: #1a1a1a; color: white; font-family: sans-serif; margin: 0; padding: 10px; }
+        .blitz-card { background: #2b2b2b; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 15px; }
+        .champ-img { width: 60px; height: 60px; border-radius: 50%; border: 2px solid #6366f1; }
+        .runes-row { display: flex; gap: 5px; margin-top: 8px; }
+        .rune-icon { width: 30px; height: 30px; border-radius: 50%; background: #444; }
+    </style>
+</head>
+<body>
+    <div class="blitz-card">
+        <img id="champ-img" class="champ-img" src="placeholder.png">
+        <div>
+            <h2 id="champ-name" style="margin:0">Esperando...</h2>
+            <div id="runes-container" class="runes-row"></div>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        ipcRenderer.on('update-ui', (event, data) => {
+            document.getElementById('champ-img').src = data.champIcon;
+            document.getElementById('champ-name').innerText = data.name;
+            
+            // Limpiamos y creamos los iconos de runas
+            const container = document.getElementById('runes-container');
+            container.innerHTML = '';
+            data.runes.forEach(id => {
+                const img = document.createElement('img');
+                img.className = 'rune-icon';
+                // URL de ejemplo para el icono de la runa
+                img.src = `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/perk-images/styles/${id}.png`;
+                container.appendChild(img);
+            });
+        });
+    </script>
+</body>
+</html>

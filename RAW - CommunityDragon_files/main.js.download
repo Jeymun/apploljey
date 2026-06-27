@@ -1,0 +1,258 @@
+
+const MAX_RESULTS = 10000;
+
+const searchData = {
+  patch: null,
+  filelist: null,
+  mode: null,
+  localPrefix: null,
+  active: false,
+};
+
+/// Initialize the search feature
+const initSearch = () => {
+  const search = document.getElementById('search-input');
+
+  search.onfocus = async () => {
+    if (searchData.filelist === null) {
+      searchData.patch = window.location.pathname.split('/')[1] || 'latest';
+      const path = document.querySelector('main > h1').textContent.split('/');
+      searchData.localPrefix = path.slice(2, -1).join('/').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      const spinner = document.getElementById('search-spinner');
+      const searchIcon = document.getElementById('search-icon');
+      search.disabled = true;
+      spinner.classList.remove('hidden');
+      searchIcon.classList.add('hidden');
+      searchData.filelist = (await (await fetch(`/${searchData.patch}/cdragon/files.exported.txt`)).text()).split("\n");
+      if (searchData.filelist[searchData.filelist-1] === "") {
+        searchData.filelist.pop();
+      }
+
+      spinner.classList.add('hidden');
+      searchIcon.classList.remove('hidden');
+      search.disabled = false;
+      search.focus();
+    }
+  };
+
+  search.onkeyup = ev => {
+    if (ev.key == 'Escape') {
+      // Hide results with 'Escape' in the search bar
+      displaySearchResults(false);
+      ev.preventDefault();
+    } else if (ev.key == 'Enter') {
+      ev.preventDefault();
+      updateSearch();
+    }
+  };
+
+  setSearchMode('local');
+};
+
+/// Update search results using input value
+const updateSearch = () => {
+  const pattern = document.getElementById('search-input').value.trim();
+  if (!pattern) {
+    return;
+  }
+
+  const prefix = searchData.mode === 'local' ? searchData.localPrefix : null;
+  let rePattern = null;
+  if (!/^[a-zA-Z0-9_-]+$/.test(pattern)) {
+    try {
+      rePattern = RegExp(pattern, 'i');
+    } catch (e) {
+      console.error("Search failed", e);
+      return false;
+    }
+  }
+
+  // Build filter function
+  let filter; 
+  if (prefix) {
+    if (rePattern) {
+      filter = (s) => { return s.startsWith(prefix) && rePattern.test(s); };
+    } else {
+      filter = (s) => { return s.startsWith(prefix) && s.includes(pattern); };
+    }
+  } else {
+    if (rePattern) {
+      filter = (s) => { return rePattern.test(s); };
+    } else {
+      filter = (s) => { return s.includes(pattern); };
+    }
+  }
+
+  // Build the result list
+  const results = document.querySelector('#search-results > ul');
+  results.replaceChildren();
+
+  let i = 0;
+  const hrefPrefix = `/${searchData.patch}/`;
+  for (const s of searchData.filelist) {
+    if (!filter(s)) {
+      continue;
+    }
+    const li = document.createElement('li')
+    const a = document.createElement('a')
+    a.href = hrefPrefix + s;
+    a.textContent = s;
+    li.appendChild(a);
+    results.appendChild(li);
+
+    if (++i === MAX_RESULTS) {
+      break;
+    }
+  }
+
+  const summary = document.querySelector('#search-results > p');
+  if (i >= MAX_RESULTS) {
+    summary.textContent = `${i} results (truncated)`;
+  } else {
+    summary.textContent = `${i} results`;
+  }
+
+  displaySearchResults(true);
+}
+
+let searchMode = null;
+/// Change search mode (local/global)
+const setSearchMode = (mode) => {
+  const searchLocal = document.getElementById('search-local');
+  const searchGlobal = document.getElementById('search-global');
+  if (mode === 'global') {
+    searchLocal.classList.remove('active');
+    searchGlobal.classList.add('active');
+    searchData.mode = 'global';
+  } else {
+    searchLocal.classList.add('active');
+    searchGlobal.classList.remove('active');
+    searchData.mode = 'local';
+  }
+  if (searchData.active) {
+    // Rerun the search if one is displayed
+    updateSearch();
+  }
+};
+
+/// Enable/disable search results
+const displaySearchResults = (enable) => {
+  if (enable === searchData.active) {
+    return;
+  }
+  const main = document.querySelector('main');
+  const results = document.getElementById('search-results');
+  const searchIcon = document.getElementById('search-icon');
+  const closeIcon = document.getElementById('search-close');
+  if (enable) {
+    main.classList.add('hidden');
+    results.classList.remove('hidden');
+    searchIcon.classList.add('hidden');
+    closeIcon.classList.remove('hidden');
+  } else {
+    main.classList.remove('hidden');
+    results.classList.add('hidden');
+    searchIcon.classList.remove('hidden');
+    closeIcon.classList.add('hidden');
+  }
+  searchData.active = enable;
+}
+
+/// Search a pattern
+const searchPattern = (pattern) => {
+};
+
+
+/// Reformat the table from nginx template
+const formatTable = () => {
+  const months = {
+    'Jan': '01',
+    'Feb': '02',
+    'Mar': '03',
+    'Apr': '04',
+    'May': '05',
+    'Jun': '06',
+    'Jul': '07',
+    'Aug': '08',
+    'Sep': '09',
+    'Oct': '10',
+    'Nov': '11',
+    'Dec': '12',
+  }
+
+  const table = document.querySelector('main > table');
+
+  // change date formatting
+  table.querySelectorAll('tbody tr td:last-child').forEach(el => {
+    if (el.textContent === '-') return;
+    const elements = el.textContent.split(' ')[0].split('-');
+    elements[1] = months[elements[1]];
+    el.textContent = elements.join('-');
+  });
+
+  // add file size
+  table.querySelectorAll('tbody tr td:nth-last-child(2)').forEach(el => {
+    if (el.textContent === '-') return;
+    el.parentElement.querySelector('td:nth-last-child(3)')
+      .innerHTML += `<span class="size hide-screen-m">${el.textContent}</span>`;
+  });
+
+  // adds an empty table header element
+  table.querySelectorAll('thead tr').forEach(el => {
+    el.innerHTML = '<th></th>' + el.innerHTML;
+  })
+
+  // adds icons for all rows
+  table.querySelectorAll('tbody tr').forEach(el => {
+    const a = el.querySelector('td > a');
+    const filename = a.title;
+
+    let icon = '<span uk-icon="question"></span>';
+    if (a.href.endsWith("/")) {
+      icon = '<span uk-icon="folder"></span>';
+    } else if (/\.(jpe?g|gif|png)$/.test(filename)) {
+      icon = `<img alt="${filename} thumbnail" src="/t${location.pathname}${filename}" width="30" height="30"/>`;
+    } else if (/\.(svg)$/.test(filename)) {
+      icon = `<img alt="${filename} thumbnail" src="${filename}" width="30" height="30"/>`;
+    } else if (/\.(css|html|styl|js)$/.test(filename)) {
+      icon = '<span uk-icon="code"></span>';
+    } else if (/\.(csv|json|txt|yaml)$/.test(filename)) {
+      icon = '<span uk-icon="file-text"></span>';
+    } else if (/\.(ogg|)$/.test(filename)) {
+      icon = '<span uk-icon="bell"></span>';
+    } else if (/\.(otf|ttf)$/.test(filename)) {
+      icon = '<span uk-icon="pencil"></span>';
+    } else if (/\.(webm)$/.test(filename)) {
+      icon = '<span uk-icon="camera"></span>';
+    }
+    el.innerHTML = `<td class="icon">${icon}</td>${el.innerHTML}`;
+  })
+}
+
+/// Populates breadcrumbs
+const populateCrumbs = () => {
+  // Get path components from title
+  const paths = document.querySelector('main > h1').textContent.split('/');
+
+  // Remove first and last element (leading/trailing '/')
+  paths.shift();
+  paths.pop();
+
+  // Map path components to crumbs list items
+  const crumbs = paths.reduce((acc, cur) =>
+    acc.push({ name: cur, path: acc[acc.length - 1].path + cur + '/' }) && acc,
+    [{ name: 'Home', path: '/' }]
+  );
+
+  // Convert to HTML and insert in document
+  const breadCrumbs = document.getElementById('breadcrumbs');
+  breadCrumbs.innerHTML = crumbs.map(crumb => `<li><a href="${crumb.path}">${crumb.name}</a></li>`).join('');
+}
+
+/// Run all page initializations
+const onContentLoaded = () => {
+  populateCrumbs();
+  formatTable();
+  initSearch();
+}

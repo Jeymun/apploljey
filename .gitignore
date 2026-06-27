@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+
+# Carpetas de construcción y distribución
+dist/
+build/
+release/
+
+# Archivos de entorno y logs
+.env
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos temporales de Electron
+*.asar
+*.asar.unpacked
+
+# Archivos de sistema y VS Code
+.vscode/
+.DS_Store
+Thumbs.db
