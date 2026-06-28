@@ -4,87 +4,96 @@
     <style>
         body {
             margin: 0;
-            padding: 0;
+            padding: 20px;
             height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Segoe UI', sans-serif;
-            color: white;
-            /* La magia del fondo */
             background-image: url('./background.png');
             background-size: cover;
             background-position: center;
-            background-repeat: no-repeat;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            font-family: 'Segoe UI', sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-radius: 15px;
+            border: 2px solid rgba(255,255,255,0.2);
+            -webkit-app-region: drag; /* Permite arrastrar la ventana */
+            overflow: hidden;
         }
 
-        #main-container {
-            background: rgba(0, 0, 0, 0.6); /* Transparencia para leer mejor */
-            padding: 15px;
+        #main-box {
+            background: rgba(0, 0, 0, 0.75);
+            padding: 20px;
             border-radius: 15px;
             text-align: center;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255,255,255,0.2);
+            width: 90%;
+            -webkit-app-region: no-drag; /* Para poder hacer clic dentro */
         }
 
-        #champ-img {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            border: 3px solid #ffcc00;
-            margin-bottom: 10px;
-        }
-
-        #runes-container {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            margin-top: 10px;
-        }
-
-        .rune-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: 2px solid #aaa;
-            transition: transform 0.2s;
-        }
+        #champ-img { width: 80px; height: 80px; border-radius: 50%; border: 3px solid gold; margin-bottom: 5px; }
         
-        .rune-icon:hover {
-            transform: scale(1.2);
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .rune-img, .spell-img { width: 45px; height: 45px; border-radius: 50%; background: #333; border: 2px solid #555; }
+        
+        .spell-grid {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .close-btn {
+            position: absolute; top: 10px; right: 10px;
+            cursor: pointer; color: white; font-weight: bold; font-size: 18px;
+            -webkit-app-region: no-drag;
         }
     </style>
 </head>
 <body>
 
-    <div id="main-container">
-        <img id="champ-img" src="" alt="Campeón">
-        <h2 id="champ-name" style="margin: 0; font-size: 18px;">Seleccionando...</h2>
-        <div id="runes-container"></div>
+    <div class="close-btn" onclick="window.close()">X</div>
+
+    <div id="main-box">
+        <img id="champ-img" src="" alt="Champ">
+        <h2 id="champ-name" style="margin: 5px 0; font-size: 18px;">Cargando...</h2>
+        
+        <div id="runes" class="grid-container"></div>
+        <div id="spells" class="spell-grid"></div>
     </div>
 
     <script>
         const { ipcRenderer } = require('electron');
+        
         ipcRenderer.on('update-ui', (e, data) => {
-            console.log("Datos recibidos:", data); // <--- MIRA ESTO EN LA CONSOLA (Ctrl+Shift+I)
-        
-            if (data.name) document.getElementById('champ-name').innerText = data.name;
-            if (data.champIcon) document.getElementById('champ-img').src = data.champIcon;
-        
-        const container = document.getElementById('runes-container');
-        container.innerHTML = '';
-        
-        if (data.runes) {
+            // Actualizar campeón
+            document.getElementById('champ-name').innerText = data.name;
+            document.getElementById('champ-img').src = data.champIcon;
+            
+            // Actualizar runas
+            const runeContainer = document.getElementById('runes');
+            runeContainer.innerHTML = '';
             data.runes.forEach(url => {
                 const img = document.createElement('img');
                 img.src = url;
-                img.className = 'rune-icon';
-                container.appendChild(img);
+                img.className = 'rune-img';
+                runeContainer.appendChild(img);
             });
-        }
-    });
-</script>
+
+            // Actualizar hechizos
+            const spellContainer = document.getElementById('spells');
+            spellContainer.innerHTML = '';
+            data.spells.forEach(url => {
+                const img = document.createElement('img');
+                img.src = url;
+                img.className = 'spell-img';
+                spellContainer.appendChild(img);
+            });
+        });
+    </script>
 </body>
 </html>

@@ -7,18 +7,27 @@ const https = require('https');
 
 let mainWindow;
 
-// Cargamos perks.json para convertir ID -> Imagen
+// Cargamos los archivos necesarios
 const PERKS_DATA_PATH = path.join(__dirname, 'perks.json');
 const perksData = fs.existsSync(PERKS_DATA_PATH) ? JSON.parse(fs.readFileSync(PERKS_DATA_PATH, 'utf-8')) : [];
 
 function createWindow() {
+    const { screen } = require('electron');
+    const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+
     mainWindow = new BrowserWindow({
-        width: 450,
-        height: 250,
+        width: 500,     // Tamaño más grande
+        height: 400,    // Tamaño más grande
+        x: width - 520, // Posición: Ancho total menos el ancho de la ventana + margen
+        y: 20,          // Un poco de margen desde arriba
         resizable: false,
+        frame: false,   // Quitamos los bordes de ventana (estilo pro)
+        transparent: true, // Fondo transparente
+        alwaysOnTop: true, // La app se mantiene sobre el juego
         webPreferences: { 
             nodeIntegration: true, 
-            contextIsolation: false 
+            contextIsolation: false,
+            webSecurity: false 
         }
     });
     mainWindow.loadFile('index.html');
@@ -50,13 +59,52 @@ async function startApp() {
             const champEntry = officialRunes.find(c => c.championId === player.championId);
             const rec = champEntry?.runeRecommendations?.[0];
 
-            // CONVERSIÓN DE IDs A URLs
+         // MAPEO DE ID A RAMA (Para encontrar la carpeta correcta)
+// Esto es necesario porque el iconPath de Riot es inconsistente
+            const getBranch = (id) => {
+                if (id >= 8100 && id <= 8199) return "domination";
+                if (id >= 8200 && id <= 8299) return "sorcery";
+                if (id >= 8300 && id <= 8399) return "inspiration";
+                if (id >= 8400 && id <= 8499) return "resolve";
+                if (id >= 8000 && id <= 8099) return "precision";
+                return "statmods"; // Por defecto para las de estadísticas
+            };
+
+            // CONVERSIÓN DE IDs A URLs - ESTRUCTURA DEFINITIVA
+            const getSummonerImageUrl = (spellId) => {
+            // Busca el hechizo en tu archivo de datos cargado
+            const spell = summonersData.find(s => s.id === spellId);
+            if (!spell) return null;
+
+            // La ruta estándar de CommunityDragon para hechizos
+            const fileName = spell.iconPath.split('/').pop().toLowerCase();
+            return `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/data/spells/icons2d/${fileName}`;
+        };
             const runeImageUrls = rec ? rec.perkIds.map(id => {
                 const rune = perksData.find(p => p.id === id);
-                return rune ? `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/${rune.iconPath.toLowerCase()}` : null;
+                
+                // Si la runa no existe en tu JSON local, la ignoramos completamente
+                if (!rune) return null;
+
+                // Validación de nombres obsoletos (puedes añadir los que vayas encontrando)
+                const obsoletas = ['triumph', 'legendhaste']; 
+                const fileName = rune.iconPath.split('/').pop().toLowerCase();
+                
+                if (obsoletas.some(nombre => fileName.includes(nombre))) {
+                    return null; // Saltamos esta runa porque ya no existe
+                }
+
+                const branch = getBranch(id);
+                const cleanName = fileName.replace('.png', '');
+
+                // Construcción segura
+                if (branch === "statmods") {
+                    return `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/perk-images/statmods/${fileName}`;
+                }
+
+                return `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/perk-images/styles/${branch}/${cleanName}/${fileName}`;
             }).filter(url => url !== null) : [];
 
-            // Envío de URLs al frontend
             mainWindow.webContents.send('update-ui', {
                 name: champName,
                 lane: player.assignedPosition || 'N/A',
@@ -86,8 +134,4 @@ async function startApp() {
 app.whenReady().then(() => {
     createWindow();
     startApp();
-});
-
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit();
 });
