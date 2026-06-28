@@ -7,6 +7,10 @@ const https = require('https');
 
 let mainWindow;
 
+// Cargamos perks.json para convertir ID -> Imagen
+const PERKS_DATA_PATH = path.join(__dirname, 'perks.json');
+const perksData = fs.existsSync(PERKS_DATA_PATH) ? JSON.parse(fs.readFileSync(PERKS_DATA_PATH, 'utf-8')) : [];
+
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 450,
@@ -46,12 +50,18 @@ async function startApp() {
             const champEntry = officialRunes.find(c => c.championId === player.championId);
             const rec = champEntry?.runeRecommendations?.[0];
 
-            // Envío de datos enriquecidos para la interfaz estilo Blitz
+            // CONVERSIÓN DE IDs A URLs
+            const runeImageUrls = rec ? rec.perkIds.map(id => {
+                const rune = perksData.find(p => p.id === id);
+                return rune ? `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/${rune.iconPath.toLowerCase()}` : null;
+            }).filter(url => url !== null) : [];
+
+            // Envío de URLs al frontend
             mainWindow.webContents.send('update-ui', {
                 name: champName,
                 lane: player.assignedPosition || 'N/A',
                 champIcon: `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-icons/${player.championId}.png`,
-                runes: rec ? rec.perkIds : []
+                runes: runeImageUrls
             });
 
             if (rec) {

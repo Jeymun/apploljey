@@ -2,39 +2,89 @@
 <html>
 <head>
     <style>
-        body { background: #1a1a1a; color: white; font-family: sans-serif; margin: 0; padding: 10px; }
-        .blitz-card { background: #2b2b2b; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 15px; }
-        .champ-img { width: 60px; height: 60px; border-radius: 50%; border: 2px solid #6366f1; }
-        .runes-row { display: flex; gap: 5px; margin-top: 8px; }
-        .rune-icon { width: 30px; height: 30px; border-radius: 50%; background: #444; }
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', sans-serif;
+            color: white;
+            /* La magia del fondo */
+            background-image: url('./background.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        #main-container {
+            background: rgba(0, 0, 0, 0.6); /* Transparencia para leer mejor */
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        #champ-img {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: 3px solid #ffcc00;
+            margin-bottom: 10px;
+        }
+
+        #runes-container {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .rune-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #aaa;
+            transition: transform 0.2s;
+        }
+        
+        .rune-icon:hover {
+            transform: scale(1.2);
+        }
     </style>
 </head>
 <body>
-    <div class="blitz-card">
-        <img id="champ-img" class="champ-img" src="placeholder.png">
-        <div>
-            <h2 id="champ-name" style="margin:0">Esperando...</h2>
-            <div id="runes-container" class="runes-row"></div>
-        </div>
+
+    <div id="main-container">
+        <img id="champ-img" src="" alt="Campeón">
+        <h2 id="champ-name" style="margin: 0; font-size: 18px;">Seleccionando...</h2>
+        <div id="runes-container"></div>
     </div>
 
     <script>
         const { ipcRenderer } = require('electron');
-        ipcRenderer.on('update-ui', (event, data) => {
-            document.getElementById('champ-img').src = data.champIcon;
-            document.getElementById('champ-name').innerText = data.name;
-            
-            // Limpiamos y creamos los iconos de runas
-            const container = document.getElementById('runes-container');
-            container.innerHTML = '';
-            data.runes.forEach(id => {
+        ipcRenderer.on('update-ui', (e, data) => {
+            console.log("Datos recibidos:", data); // <--- MIRA ESTO EN LA CONSOLA (Ctrl+Shift+I)
+        
+            if (data.name) document.getElementById('champ-name').innerText = data.name;
+            if (data.champIcon) document.getElementById('champ-img').src = data.champIcon;
+        
+        const container = document.getElementById('runes-container');
+        container.innerHTML = '';
+        
+        if (data.runes) {
+            data.runes.forEach(url => {
                 const img = document.createElement('img');
+                img.src = url;
                 img.className = 'rune-icon';
-                // URL de ejemplo para el icono de la runa
-                img.src = `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/perk-images/styles/${id}.png`;
                 container.appendChild(img);
             });
-        });
-    </script>
+        }
+    });
+</script>
 </body>
 </html>
